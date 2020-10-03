@@ -8,7 +8,7 @@ using UnityEngine;
 public class GameScript : MonoBehaviour {
     static float SPEED = .015f;
 
-    public GameObject prefabTrack, prefabTrain;
+    public GameObject prefabTrack, prefabTrain, prefabPlayerTrain;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn;
     public TextAsset textLevel;
     public LayerMask layerMaskSwitch;
@@ -21,6 +21,8 @@ public class GameScript : MonoBehaviour {
     Dictionary<Collider, Switch> switchColliders;
     Dictionary<Train, GameObject> trainObjects;
     List<Train> deadTrains;
+    bool won = false;
+    float wonTime;
 
     void Awake() {
         level = new Level(textLevel);
@@ -93,7 +95,7 @@ public class GameScript : MonoBehaviour {
         // Place trains.
         trainObjects = new Dictionary<Train, GameObject>();
         foreach (Train train in level.trains) {
-            trainObjects[train] = Instantiate(prefabTrain, root.transform);
+            trainObjects[train] = Instantiate(train.isPlayer ? prefabPlayerTrain : prefabTrain, root.transform);
         }
         deadTrains = new List<Train>();
         // Shift to center and zoom camera.
@@ -138,6 +140,12 @@ public class GameScript : MonoBehaviour {
     }
     void UpdateTrains() {
         t += SPEED;
+        if (won) {
+            wonTime += SPEED;
+        }
+        if (wonTime > 10) {
+            UnityEditor.EditorApplication.isPlaying = false;
+        }
         if (t >= 1) {
             t -= 1;
             for (int i = level.trains.Count - 1; i >= 0;  i--) {
@@ -145,6 +153,9 @@ public class GameScript : MonoBehaviour {
                 if (train.nextCoor.Equals(level.exit)) {
                     deadTrains.Add(train);
                     level.trains.RemoveAt(i);
+                    if (train.isPlayer) {
+                        won = true;
+                    }
                     continue;
                 }
                 train.Update(level.GetNextCoor(train.nextCoor, train.coor));
@@ -163,7 +174,8 @@ public class GameScript : MonoBehaviour {
                 targetAngle -= 180;
             }
             trainObject.transform.localPosition = new Vector3(x, 0, z);
-            trainObject.transform.localRotation = Quaternion.Euler(0, Mathf.Lerp(oldTransform.Item2, targetAngle, t), 0);
+            bool flip = train.nextCoor.Item1 - train.coor.Item1 > 0 || train.nextCoor.Item2 - train.coor.Item2 > 0;
+            trainObject.transform.localRotation = Quaternion.Euler(0, Mathf.Lerp(oldTransform.Item2, targetAngle, t) + (flip ? 180 : 0), 0);
         }
         foreach (Train train in deadTrains) {
             GameObject trainObject = trainObjects[train];

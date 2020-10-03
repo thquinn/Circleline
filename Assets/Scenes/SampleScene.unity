@@ -423,6 +423,8 @@ MonoBehaviour:
     type: 3}
   prefabTrain: {fileID: 6509426733192355368, guid: bd9f5c335e281a340ae455c7b3d53c55,
     type: 3}
+  prefabPlayerTrain: {fileID: 8147367782620685713, guid: 5b85536cb0f97bf43a47e3008955013e,
+    type: 3}
   spriteTrackTurn: {fileID: 21300000, guid: f5c49c867306bb642a5ffc12ccbc478f, type: 3}
   spriteTrackSwitchFork: {fileID: 21300000, guid: 92a8e8a88171dcc409c57e926d7813bc,
     type: 3}

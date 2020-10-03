@@ -17,7 +17,20 @@ namespace Assets.Model {
         public Tuple<int, int> exit;
 
         public Level(TextAsset text) {
-            string[] lines = Regex.Split(text.text, "\r\n|\n|\r");
+            string[] chunks = Regex.Split(text.text, "\r\n\r\n|\n\n|\r\r");
+            // Metadata.
+            Tuple<int, int> playerCoor = new Tuple<int, int>(-1, -1);
+            string[] lines = Regex.Split(chunks[1], "\r\n|\n|\r");
+            foreach (string line in lines) {
+                string[] args = line.Split('\t');
+                string[] tokens = args[1].Split(' ');
+                if (args[0] == "P") {
+                    playerCoor = new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]));
+                }
+            }
+            Debug.Assert(playerCoor.Item1 != -1, string.Format("No player coordinate found in level '{0}'.", text.name));
+            // Level.
+            lines = Regex.Split(chunks[0], "\r\n|\n|\r");
             tiles = new LevelTile[lines[0].Length, lines.Length];
             Dictionary<Tuple<int, int>, int> trainsToPlace = new Dictionary<Tuple<int, int>, int>();
             // First pass to place track and train placeholders.
@@ -64,10 +77,10 @@ namespace Assets.Model {
             trains = new List<Train>();
             foreach (var trainToPlace in trainsToPlace) {
                 Tuple<int, int>[] neighbors = GetNeighbors(trainToPlace.Key);
-                trains.Add(new Train(neighbors[1], trainToPlace.Key, neighbors[0]));
+                trains.Add(new Train(neighbors[1], trainToPlace.Key, neighbors[0], trainToPlace.Key.Equals(playerCoor) && trainToPlace.Value == 1));
                 for (int i = 1; i < trainToPlace.Value; i++) {
                     Train lastTrain = trains[trains.Count - 1];
-                    trains.Add(new Train(lastTrain.coor, lastTrain.nextCoor, GetNextCoor(lastTrain.nextCoor, lastTrain.coor)));
+                    trains.Add(new Train(lastTrain.coor, lastTrain.nextCoor, GetNextCoor(lastTrain.nextCoor, lastTrain.coor), trainToPlace.Key.Equals(playerCoor) && i == trainToPlace.Value - 1 && trainToPlace.Value > 1));
                 }
             }
         }
