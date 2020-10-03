@@ -7,7 +7,22 @@ using UnityEngine;
 
 namespace Assets.Code {
     public class Util {
-        public static float EaseCurvedTrack(float one, float two, float t) {
+        public static int CountTrue(params bool[] arr) {
+            return arr.Count(b => b);
+        }
+
+        static Camera mainCamera;
+        public static Collider GetMouseCollider(LayerMask layerMask) {
+            if (mainCamera == null) mainCamera = Camera.main;
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (!Physics.Raycast(ray, out hit, Mathf.Infinity, layerMask)) {
+                return null;
+            }
+            return hit.collider;
+        }
+
+        public static float EaseTrack(float one, float two, float t) {
             if (one == two) {
                 return one;
             }

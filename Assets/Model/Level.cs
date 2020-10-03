@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Code;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,46 +13,85 @@ namespace Assets.Model {
 
         public LevelTile[,] tiles;
         public List<Train> trains;
+        public Dictionary<Tuple<int, int>, Switch> switches;
+        public Tuple<int, int> exit;
 
         public Level(TextAsset text) {
             string[] lines = Regex.Split(text.text, "\r\n|\n|\r");
             tiles = new LevelTile[lines[0].Length, lines.Length];
             Dictionary<Tuple<int, int>, int> trainsToPlace = new Dictionary<Tuple<int, int>, int>();
+            // First pass to place track and train placeholders.
             for (int y = 0; y < tiles.GetLength(1); y++) {
+                Debug.Assert(lines[y].Length == tiles.GetLength(0), string.Format("Level '{0}' has uneven line lengths.", text.name));
                 for (int x = 0; x < tiles.GetLength(0); x++) {
                     char c = lines[y][x];
                     if (c == '.') {
                         tiles[x, y] = LevelTile.Ground;
                     } else if (c == '=') {
                         tiles[x, y] = LevelTile.Track;
+                    } else if (c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'r' || c == 'R') {
+                        tiles[x, y] = LevelTile.Track;
                     } else if (c >= '1' && c <= '9') {
                         tiles[x, y] = LevelTile.Track;
                         int numCars = c - '0';
                         trainsToPlace[new Tuple<int, int>(x, y)] = numCars;
+                    } else if (c == '$') {
+                        tiles[x, y] = LevelTile.Track;
+                        exit = new Tuple<int, int>(x, y);
                     } else {
                         throw new Exception(string.Format("Unexpected character '{0}' in level {1}.", lines[y][x], text.name));
+                    }
+                }
+            }
+            // Second pass to place switches.
+            switches = new Dictionary<Tuple<int, int>, Switch>();
+            for (int y = 0; y < tiles.GetLength(1); y++) {
+                for (int x = 0; x < tiles.GetLength(0); x++) {
+                    char c = lines[y][x];
+                    if (c == 'f' || c == 'F') {
+                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
+                        switches[coor] = new Switch(this, SwitchType.Fork, coor, c == 'f' ? 0 : 1);
+                    } else if (c == 'l' || c == 'L') {
+                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
+                        switches[coor] = new Switch(this, SwitchType.Left, coor, c == 'l' ? 0 : 1);
+                    } else if (c == 'r' || c == 'R') {
+                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
+                        switches[coor] = new Switch(this, SwitchType.Right, coor, c == 'r' ? 0 : 1);
                     }
                 }
             }
             // Place each train starting from its head.
             trains = new List<Train>();
             foreach (var trainToPlace in trainsToPlace) {
-                Tuple<int, int>[] neighbors = NeighborCoors(trainToPlace.Key);
-                trains.Add(new Train(trainToPlace.Key, neighbors[0]));
+                Tuple<int, int>[] neighbors = GetNeighbors(trainToPlace.Key);
+                trains.Add(new Train(neighbors[1], trainToPlace.Key, neighbors[0]));
                 for (int i = 1; i < trainToPlace.Value; i++) {
                     Train lastTrain = trains[trains.Count - 1];
-                    neighbors = NeighborCoors(lastTrain.nextCoor);
-                    foreach (Tuple<int, int> neighbor in neighbors) {
-                        if (!neighbor.Equals(lastTrain.coor)) {
-                            trains.Add(new Train(lastTrain.nextCoor, neighbor));
-                            break;
-                        }
-                    }
+                    trains.Add(new Train(lastTrain.coor, lastTrain.nextCoor, GetNextCoor(lastTrain.nextCoor, lastTrain.coor)));
                 }
             }
         }
 
-        public Tuple<int, int>[] NeighborCoors(Tuple<int, int> coor) {
+        public Tuple<int, int> GetNextCoor(Tuple<int, int> coor, Tuple<int, int> last) {
+            Tuple<int, int>[] neighbors = GetNeighbors(coor);
+            if (neighbors[0].Equals(last)) {
+                return neighbors[1];
+            }
+            if (neighbors[1].Equals(last)) {
+                return neighbors[0];
+            }
+            // We're approaching a switch from the off end.
+            neighbors = switches[coor].GetOtherState();
+            if (neighbors[0].Equals(last)) {
+                return neighbors[1];
+            }
+            Debug.Assert(neighbors[1].Equals(last), string.Format("Something bad happened approaching the switch at {0},{1} from the off end.", coor.Item1, coor.Item2));
+            return neighbors[0];
+        }
+        Tuple<int, int>[] GetNeighbors(Tuple<int, int> coor) {
+            if (switches.ContainsKey(coor)) {
+                return switches[coor].GetNeighbors();
+            }
             List<Tuple<int, int>> coors = new List<Tuple<int, int>>();
             int x = coor.Item1;
             int y = coor.Item2;
@@ -67,23 +107,28 @@ namespace Assets.Model {
             if (y > 0 && tiles[x, y - 1] == LevelTile.Track) {
                 coors.Add(new Tuple<int, int>(x, y - 1));
             }
+            if (coor.Equals(exit)) {
+                int dx = coor.Item1 - coors[0].Item1;
+                int dy = coor.Item2 - coors[0].Item2;
+                coors.Add(new Tuple<int, int>(x + dx, y + dy));
+            }
             Debug.Assert(coors.Count == 2, "Unexpected number of track neighbors.");
             return coors.ToArray();
         }
 
-        public Tuple<Vector3, float> GetTransform(Tuple<int, int> coor) {
+        public Tuple<Vector3, float> GetTransform(Tuple<int, int> coor, Tuple<int, int> last) {
             Vector3 position;
             float rotation;
-            Tuple<int, int>[] neighbors = NeighborCoors(coor);
-            Tuple<int, int> delta1 = new Tuple<int, int>(coor.Item1 - neighbors[0].Item1, coor.Item2 - neighbors[0].Item2);
-            Tuple<int, int> delta2 = new Tuple<int, int>(neighbors[1].Item1 - coor.Item1, neighbors[1].Item2 - coor.Item2);
+            Tuple<int, int> next = GetNextCoor(coor, last);
+            Tuple<int, int> delta1 = new Tuple<int, int>(coor.Item1 - last.Item1, coor.Item2 - last.Item2);
+            Tuple<int, int> delta2 = new Tuple<int, int>(next.Item1 - coor.Item1, next.Item2 - coor.Item2);
             // Straight track.
             if (delta1.Equals(delta2)) {
                 position = new Vector3(coor.Item1, 0, -coor.Item2);
                 rotation = delta1.Item2 == 0 ? 0 : 90;
             } else {
-                float x = (coor.Item1 + neighbors[0].Item1 * CURVE_WEIGHT + neighbors[1].Item1 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
-                float y = (coor.Item2 + neighbors[0].Item2 * CURVE_WEIGHT + neighbors[1].Item2 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
+                float x = (coor.Item1 + last.Item1 * CURVE_WEIGHT + next.Item1 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
+                float y = (coor.Item2 + last.Item2 * CURVE_WEIGHT + next.Item2 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
                 position = position = new Vector3(x, 0, -y);
                 int ddx = delta2.Item1 - delta1.Item1;
                 int ddy = delta2.Item2 - delta1.Item2;
@@ -95,5 +140,70 @@ namespace Assets.Model {
 
     public enum LevelTile {
         Ground, Track
+    }
+
+    public class Switch {
+        public SwitchType type;
+        public Tuple<int, int> coor;
+        public int state;
+        Tuple<int, int>[][] states;
+
+        public Switch(Level level, SwitchType type, Tuple<int, int> coor, int state) {
+            this.type = type;
+            this.coor = coor;
+            this.state = state;
+            int x = coor.Item1;
+            int y = coor.Item2;
+            bool trackLeft = x > 0 && level.tiles[x - 1, y] == LevelTile.Track;
+            bool trackUp = y > 0 && level.tiles[x, y - 1] == LevelTile.Track;
+            bool trackRight = x < level.tiles.GetLength(0) - 1 && level.tiles[x + 1, y] == LevelTile.Track;
+            bool trackDown = y < level.tiles.GetLength(1) - 1 && level.tiles[x, y + 1] == LevelTile.Track;
+            Debug.Assert(Util.CountTrue(trackLeft, trackUp, trackRight, trackDown) == 3, string.Format("Switch at {0},{1} isn't at a proper intersection.", coor.Item1, coor.Item2));
+            Tuple<int, int> left = new Tuple<int, int>(coor.Item1 - 1, coor.Item2);
+            Tuple<int, int> up = new Tuple<int, int>(coor.Item1, coor.Item2 - 1);
+            Tuple<int, int> right = new Tuple<int, int>(coor.Item1 + 1, coor.Item2);
+            Tuple<int, int> down = new Tuple<int, int>(coor.Item1, coor.Item2 + 1);
+            Tuple<int, int>[] exits;
+            if (!trackLeft) {
+                exits = new Tuple<int, int>[] { up, right, down };
+            } else if (!trackUp) {
+                exits = new Tuple<int, int>[] { right, down, left };
+            } else if (!trackRight) {
+                exits = new Tuple<int, int>[] { down, left, up };
+            } else {
+                exits = new Tuple<int, int>[] { left, up, right };
+            }
+            // Set states.
+            if (type == SwitchType.Fork) {
+                states = new Tuple<int, int>[][] {
+                    new Tuple<int, int>[]{ exits[1], exits[2] },
+                    new Tuple<int, int>[]{ exits[1], exits[0] },
+                };
+            } else if (type == SwitchType.Left) {
+                states = new Tuple<int, int>[][] {
+                    new Tuple<int, int>[]{ exits[0], exits[2] },
+                    new Tuple<int, int>[]{ exits[0], exits[1] },
+                };
+            } else {
+                states = new Tuple<int, int>[][] {
+                    new Tuple<int, int>[]{ exits[2], exits[0] },
+                    new Tuple<int, int>[]{ exits[2], exits[1] },
+                };
+            }
+        }
+        public Tuple<int, int>[] GetNeighbors() {
+            return states[state];
+        }
+        public Tuple<int, int>[] GetOtherState() {
+            return states[(state + 1) % 2];
+        }
+
+        public void Flip() {
+            state = (state + 1) % 2;
+        }
+    }
+
+    public enum SwitchType {
+        Left, Right, Fork
     }
 }
