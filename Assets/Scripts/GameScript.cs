@@ -25,8 +25,8 @@ public class GameScript : MonoBehaviour {
     public Camera cam;
 
     float t;
-    float speed = SPEED;
-    int levelIndex = 1;
+    float speed;
+    int levelIndex = 0;
     Level level, lastLevel;
     GameObject root, lastRoot;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
@@ -49,8 +49,8 @@ public class GameScript : MonoBehaviour {
         level = new Level(levelTexts[levelIndex]);
         if (wipe) {
             Destroy(root);
+            trainObjects.Clear();
         }
-        speed = SPEED;
         won = false;
         lost = false;
         wonTime = 0;
@@ -199,6 +199,9 @@ public class GameScript : MonoBehaviour {
         }
         UpdateMouse();
         UpdateSwitches();
+        if (!lost) {
+            speed = Mathf.Min(speed + ACCEL, SPEED);
+        }
         UpdateTrains(level);
         UpdateAudio();
         if (wonTime > 12) {
@@ -207,7 +210,13 @@ public class GameScript : MonoBehaviour {
     }
     void UpdateTransition() {
         UpdateTrains(lastLevel, false);
+        float previousT = transitionT;
         transitionT = Mathf.Min(1, transitionT + TRANSITION_SPEED);
+        if (previousT < .5f && transitionT >= .5f) {
+            t = 0;
+            speed = 0;
+            UpdateTrains(level);
+        }
         float easedT = EasingFunction.EaseInOutQuad(0, 1, transitionT);
         Vector3 lastPos = root.transform.localPosition;
         root.transform.localPosition = Vector3.Lerp(transitionFrom, transitionTo, easedT);
