@@ -26,7 +26,7 @@ public class GameScript : MonoBehaviour {
 
     float t;
     float speed;
-    int levelIndex = 11;
+    int levelIndex = 0;
     Level level, lastLevel;
     GameObject root, lastRoot;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
@@ -197,7 +197,8 @@ public class GameScript : MonoBehaviour {
             Application.Quit();
             return;
         }
-        if (!won && Input.GetKeyDown(KeyCode.R)) {
+        bool canRestart = !won || lost;
+        if (canRestart && Input.GetKeyDown(KeyCode.R)) {
             Restart();
             return;
         }

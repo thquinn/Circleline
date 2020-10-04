@@ -5,8 +5,10 @@ using UnityEngine.Audio;
 
 public class FadeScript : MonoBehaviour
 {
-    public CanvasGroup canvasGroup;
+    public CanvasGroup canvasGroup, logoCanvasGroup;
     public GameObject musicScript;
+
+    int downtime;
 
     // Start is called before the first frame update
     void Start()
@@ -22,6 +24,16 @@ public class FadeScript : MonoBehaviour
             AudioListener.volume = Mathf.Lerp(1, 0, Mathf.Pow(canvasGroup.alpha, 2));
             if (canvasGroup.alpha <= 0) {
                 musicScript.SetActive(true);
+            }
+        } else {
+            downtime++;
+            if (downtime > 30 && downtime < 330) {
+                float t = Mathf.InverseLerp(30, 330, downtime);
+                if (t > .5f) {
+                    t = 1 - t;
+                }
+                t *= 6;
+                logoCanvasGroup.alpha = t;
             }
         }
     }
