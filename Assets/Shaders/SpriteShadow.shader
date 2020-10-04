@@ -17,7 +17,7 @@
 
         CGPROGRAM
         // Lambert lighting model, and enable shadows on all light types
-#pragma surface surf Lambert fullforwardshadows alphatest:_Cutoff vertex:vert
+#pragma surface surf Lambert alphatest:_Cutoff vertex:vert
 
         // Use shader model 3.0 target, to get nicer looking lighting
 #pragma target 3.0
