@@ -216,6 +216,7 @@ public class GameScript : MonoBehaviour {
             t = 0;
             speed = 0;
             UpdateTrains(level);
+            UpdateAudio();
         }
         float easedT = EasingFunction.EaseInOutQuad(0, 1, transitionT);
         Vector3 lastPos = root.transform.localPosition;
