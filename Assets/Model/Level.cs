@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Assets.Model {
     public class Level {
-        static float CURVE_WEIGHT = .35f;
+        static float CURVE_WEIGHT = .33f;
 
         public LevelTile[,] tiles;
         public List<Train> trains;

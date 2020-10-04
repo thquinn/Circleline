@@ -425,6 +425,8 @@ MonoBehaviour:
     type: 3}
   prefabPlayerTrain: {fileID: 8147367782620685713, guid: 5b85536cb0f97bf43a47e3008955013e,
     type: 3}
+  prefabCollisionSign: {fileID: 3241899487313566640, guid: 27d6f8f977204bc4798b29d342d653ea,
+    type: 3}
   spriteTrackTurn: {fileID: 21300000, guid: f5c49c867306bb642a5ffc12ccbc478f, type: 3}
   spriteTrackSwitchFork: {fileID: 21300000, guid: 92a8e8a88171dcc409c57e926d7813bc,
     type: 3}
@@ -432,7 +434,7 @@ MonoBehaviour:
     type: 3}
   spriteTrackSwitchTurn: {fileID: 21300000, guid: 2ed5a3b0e76efca43a0a10f459bc71ab,
     type: 3}
-  textLevel: {fileID: 4900000, guid: 02f7d11ed56a67c43ada71064b10e4f7, type: 3}
+  textLevel: {fileID: 4900000, guid: e6215fca478bf0b488f550faa1ce3973, type: 3}
   layerMaskSwitch:
     serializedVersion: 2
     m_Bits: 768

@@ -3,12 +3,13 @@ using Assets.Model;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GameScript : MonoBehaviour {
     static float SPEED = .015f;
 
-    public GameObject prefabTrack, prefabTrain, prefabPlayerTrain;
+    public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn;
     public TextAsset textLevel;
     public LayerMask layerMaskSwitch;
@@ -17,11 +18,12 @@ public class GameScript : MonoBehaviour {
 
     float t;
     Level level;
+    GameObject root;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
     Dictionary<Collider, Switch> switchColliders;
     Dictionary<Train, GameObject> trainObjects;
     List<Train> deadTrains;
-    bool won = false;
+    bool won = false, lost = false;
     float wonTime;
 
     void Awake() {
@@ -29,7 +31,7 @@ public class GameScript : MonoBehaviour {
         ConstructLevel();
     }
     void ConstructLevel() {
-        GameObject root = new GameObject("Level");
+        root = new GameObject("Level");
         switchRenderers = new Dictionary<Switch, SpriteRenderer>();
         switchColliders = new Dictionary<Collider, Switch>();
         // Place tracks.
@@ -138,6 +140,9 @@ public class GameScript : MonoBehaviour {
         }
     }
     void UpdateTrains() {
+        if (lost) {
+            SPEED *= .97f;
+        }
         t += SPEED;
         if (won) {
             wonTime += SPEED;
@@ -158,6 +163,24 @@ public class GameScript : MonoBehaviour {
                     continue;
                 }
                 train.Update(level.GetNextCoor(train.nextCoor, train.coor));
+            }
+            // Check for collisions.
+            HashSet<Tuple<int, int>> collisions = new HashSet<Tuple<int, int>>();
+            foreach (Train train in level.trains) {
+                Tuple<int, int> collision = train.nextCoor;
+                if (collisions.Contains(collision)) {
+                    continue;
+                }
+                collisions.Add(collision);
+                foreach (Train other in level.trains) {
+                    if (train == other) {
+                        continue;
+                    }
+                    if (train.nextCoor.Equals(other.nextCoor) || (train.nextCoor.Equals(other.coor) && other.nextCoor.Equals(train.coor))) {
+                        lost = true;
+                        Instantiate(prefabCollisionSign, root.transform).transform.localPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
+                    }
+                }
             }
         }
         foreach (Train train in level.trains) {
