@@ -15,8 +15,8 @@ public class GameScript : MonoBehaviour {
     static float TRANSITION_SPEED = .005f;
 
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign, prefabSwitchCircle, prefabTree;
-    public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteNoCargo;
-    public AudioSource sfxSwitch;
+    public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteTrackCross, spriteNoCargo;
+    public AudioSource sfxSwitch, sfxSwitchAuto;
     public GameObject gridObject;
     public AudioMixer audioMixer;
     public TextAsset[] levelTexts;
@@ -26,7 +26,7 @@ public class GameScript : MonoBehaviour {
 
     float t;
     float speed;
-    int levelIndex = 0;
+    int levelIndex = 11;
     Level level, lastLevel;
     GameObject root, lastRoot;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
@@ -43,7 +43,7 @@ public class GameScript : MonoBehaviour {
         Application.targetFrameRate = 60;
         trainObjects = new Dictionary<Train, GameObject>();
         Restart();
-        cam.orthographicSize = 1 + Mathf.Max(level.tiles.GetLength(0), level.tiles.GetLength(1)) / 3.25f;
+        cam.orthographicSize = level.OrthographicSize();
     }
     void Restart(bool wipe = true) {
         level = new Level(levelTexts[levelIndex]);
@@ -128,10 +128,14 @@ public class GameScript : MonoBehaviour {
                         } else if (!trackRight) {
                             trackObject.transform.Rotate(0, 0, 270);
                         }
-                        if (sweetch.interaction == SwitchInteraction.Click) {
+                        if (sweetch.interaction != SwitchInteraction.None) {
                             GameObject switchCircle = Instantiate(prefabSwitchCircle, root.transform);
                             switchCircle.transform.localPosition = new Vector3(x, 0, -y);
-                            switchCircleRenderers[sweetch] = switchCircle.transform.GetChild(0).GetComponent<SpriteRenderer>();
+                            SpriteRenderer switchCircleRenderer = switchCircle.transform.GetChild(0).GetComponent<SpriteRenderer>();
+                            switchCircleRenderers[sweetch] = switchCircleRenderer;
+                            if (sweetch.interaction == SwitchInteraction.Auto) {
+                                switchCircleRenderer.color = new Color(1, .64f, 0);
+                            }
                         }
                     } else if (trackLeft && trackRight) {
                         trackObject.transform.Rotate(0, 0, 90);
@@ -225,8 +229,8 @@ public class GameScript : MonoBehaviour {
         lastRoot.transform.localPosition += delta;
         gridObject.transform.localPosition += delta;
         gridObject.transform.localPosition = new Vector3(gridObject.transform.localPosition.x % 1, gridObject.transform.localPosition.y, gridObject.transform.localPosition.z % 1);
-        float lastZoom = 1 + Mathf.Max(lastLevel.tiles.GetLength(0), lastLevel.tiles.GetLength(1)) / 3.25f;
-        float nextZoom = 1 + Mathf.Max(level.tiles.GetLength(0), level.tiles.GetLength(1)) / 3.25f;
+        float lastZoom = lastLevel.OrthographicSize();
+        float nextZoom = level.OrthographicSize();
         cam.orthographicSize = Mathf.Lerp(lastZoom, nextZoom, easedT);
         if (transitionT >= 1) {
             foreach (Train train in lastLevel.trains) {
@@ -275,6 +279,8 @@ public class GameScript : MonoBehaviour {
             } else if (kvp.Key.type == SwitchType.Right) {
                 kvp.Value.sprite = kvp.Key.state == 0 ? spriteTrackSwitchStraight : spriteTrackSwitchTurn;
                 kvp.Value.flipX = true;
+            } else if (kvp.Key.type == SwitchType.Cross) {
+                kvp.Value.sprite = spriteTrackCross;
             }
         }
     }
@@ -309,6 +315,18 @@ public class GameScript : MonoBehaviour {
             }
             if (realUpdate) {
                 CollisionCheck();
+            }
+            // Switch auto switches.
+            Tuple<int, int>[] vacatedSpaces = trainLevel.trains.Select(t => t.lastCoor).Except(trainLevel.trains.Select(t => t.coor)).ToArray();
+            foreach (Tuple<int, int> vacatedSpace in vacatedSpaces) {
+                if (!trainLevel.switches.ContainsKey(vacatedSpace)) {
+                    continue;
+                }
+                Switch sweetch = trainLevel.switches[vacatedSpace];
+                if (sweetch.interaction == SwitchInteraction.Auto) {
+                    sweetch.Flip();
+                    sfxSwitchAuto.Play();
+                }
             }
         }
         foreach (Train train in trainLevel.trains) {
@@ -355,6 +373,6 @@ public class GameScript : MonoBehaviour {
     }
 
     void UpdateAudio() {
-        audioMixer.SetFloat("TrainVol", Mathf.Lerp(-15, -80, Mathf.InverseLerp(SPEED, 0, speed)));
+        audioMixer.SetFloat("TrainVol", Mathf.Lerp(-12, -80, Mathf.InverseLerp(SPEED, 0, speed)));
     }
 }

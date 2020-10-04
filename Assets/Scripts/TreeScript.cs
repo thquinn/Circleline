@@ -9,6 +9,7 @@ public class TreeScript : MonoBehaviour
     public void Init() {
         float offX = (Random.value - .5f) * .5f;
         float offY = (Random.value - .5f) * .5f;
+        transform.localPosition += new Vector3(offX, 0, offY);
         float treeTheta = Random.Range(-10f, 20f);
         transform.localRotation = Quaternion.Euler(0, treeTheta, 0);
         float leavesTheta = Random.value * 360;

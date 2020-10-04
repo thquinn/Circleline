@@ -33,6 +33,8 @@ namespace Assets.Model {
                     reversedTrains.Add(new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1])));
                 } else if (args[0] == "SN") {
                     switchInteractionOverrides[new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]))] = SwitchInteraction.None;
+                } else if (args[0] == "SA") {
+                    switchInteractionOverrides[new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]))] = SwitchInteraction.Auto;
                 }
             }
             Debug.Assert(playerCoor.Item1 != -1, string.Format("No player coordinate found in level '{0}'.", text.name));
@@ -49,7 +51,7 @@ namespace Assets.Model {
                         tiles[x, y] = LevelTile.Ground;
                     } else if (c == '=') {
                         tiles[x, y] = LevelTile.Track;
-                    } else if (c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'r' || c == 'R') {
+                    } else if (c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'r' || c == 'R' || c == '#') {
                         tiles[x, y] = LevelTile.Track;
                     } else if (c >= '1' && c <= '9') {
                         tiles[x, y] = LevelTile.Track;
@@ -77,6 +79,8 @@ namespace Assets.Model {
                         switches[coor] = new Switch(this, SwitchType.Left, coor, c == 'l' ? 0 : 1, switchInteraction);
                     } else if (c == 'r' || c == 'R') {
                         switches[coor] = new Switch(this, SwitchType.Right, coor, c == 'r' ? 0 : 1, switchInteraction);
+                    } else if (c == '#') {
+                        switches[coor] = new Switch(this, SwitchType.Cross, coor, 0, SwitchInteraction.None);
                     }
                 }
             }
@@ -97,6 +101,12 @@ namespace Assets.Model {
 
         public Tuple<int, int> GetNextCoor(Tuple<int, int> coor, Tuple<int, int> last) {
             Tuple<int, int>[] neighbors = GetNeighbors(coor);
+            if (neighbors.Length == 4) {
+                // This is a cross.
+                int x = 2 * coor.Item1 - last.Item1;
+                int y = 2 * coor.Item2 - last.Item2;
+                return new Tuple<int, int>(x, y);
+            }
             if (neighbors[0].Equals(last)) {
                 return neighbors[1];
             }
@@ -175,6 +185,10 @@ namespace Assets.Model {
             }
             return new Tuple<Vector3, Quaternion>(position, Quaternion.Euler(0, rotation, 0));
         }
+
+        public float OrthographicSize() {
+            return 1 + Mathf.Max(tiles.GetLength(0), tiles.GetLength(1)) / 2.9f;
+        }
     }
 
     public enum LevelTile {
@@ -202,11 +216,19 @@ namespace Assets.Model {
             bool trackUp = y > 0 && level.tiles[x, y - 1] == LevelTile.Track;
             bool trackRight = x < level.tiles.GetLength(0) - 1 && level.tiles[x + 1, y] == LevelTile.Track;
             bool trackDown = y < level.tiles.GetLength(1) - 1 && level.tiles[x, y + 1] == LevelTile.Track;
-            Debug.Assert(Util.CountTrue(trackLeft, trackUp, trackRight, trackDown) == 3, string.Format("Switch at {0},{1} isn't at a proper intersection.", coor.Item1, coor.Item2));
             Tuple<int, int> left = new Tuple<int, int>(coor.Item1 - 1, coor.Item2);
             Tuple<int, int> up = new Tuple<int, int>(coor.Item1, coor.Item2 - 1);
             Tuple<int, int> right = new Tuple<int, int>(coor.Item1 + 1, coor.Item2);
             Tuple<int, int> down = new Tuple<int, int>(coor.Item1, coor.Item2 + 1);
+            if (type == SwitchType.Cross) {
+                Debug.Assert(Util.CountTrue(trackLeft, trackUp, trackRight, trackDown) == 4, string.Format("Switch at {0},{1} isn't at a proper intersection.", coor.Item1, coor.Item2));
+                states = new Tuple<int, int>[][] {
+                    new Tuple<int, int>[]{ left, up, down, right },
+                };
+                return;
+            } else {
+                Debug.Assert(Util.CountTrue(trackLeft, trackUp, trackRight, trackDown) == 3, string.Format("Switch at {0},{1} isn't at a proper intersection.", coor.Item1, coor.Item2));
+            }
             Tuple<int, int>[] exits;
             if (!trackLeft) {
                 exits = new Tuple<int, int>[] { up, right, down };
@@ -239,18 +261,18 @@ namespace Assets.Model {
             return states[state];
         }
         public Tuple<int, int>[] GetOtherState() {
-            return states[(state + 1) % 2];
+            return states[(state + 1) % states.Length];
         }
 
         public void Flip() {
-            state = (state + 1) % 2;
+            state = (state + 1) % states.Length;
         }
     }
 
     public enum SwitchType {
-        Left, Right, Fork
+        Left, Right, Fork, Cross
     }
     public enum SwitchInteraction {
-        None, Click
+        None, Click, Auto
     }
 }
