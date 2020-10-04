@@ -26,22 +26,27 @@ public class GameScript : MonoBehaviour {
 
     float t;
     float speed;
-    int levelIndex = 0;
+    public int levelIndex;
     Level level, lastLevel;
     GameObject root, lastRoot;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
     Dictionary<Collider, Switch> switchColliders;
     Dictionary<Switch, SpriteRenderer> switchCircleRenderers;
     Dictionary<Train, GameObject> trainObjects;
-    bool won, lost;
+    public bool won, lost;
     float wonTime;
     float lostLerpT;
     float transitionT;
     Vector3 transitionFrom, transitionTo;
+    int clickTally, crashTally;
+    public string victoryText;
 
     void Awake() {
         Application.targetFrameRate = 60;
         trainObjects = new Dictionary<Train, GameObject>();
+        if (!Application.isEditor) {
+            levelIndex = 0;
+        }
         Restart();
         cam.orthographicSize = level.OrthographicSize();
     }
@@ -60,6 +65,12 @@ public class GameScript : MonoBehaviour {
         UpdateSwitches();
     }
     void TransitionToNextLevel() {
+        if (levelIndex == levelTexts.Length - 1) {
+            victoryText = string.Format("Thanks for playing!\nYou won in {0} {1}.\nYou caused {2} {3}.\nPress Esc to quit.",
+                                        clickTally, clickTally == 1 ? "click" : "clicks",
+                                        crashTally, crashTally == 1 ? "crash" : "crashes");
+            return;
+        }
         levelIndex++;
         lastLevel = level;
         lastRoot = root;
@@ -245,6 +256,18 @@ public class GameScript : MonoBehaviour {
         }
     }
     void UpdateMouse() {
+        // Game start animation.
+        if (levelIndex == 0 && Time.time < 10) {
+            SpriteRenderer renderer = switchCircleRenderers.First().Value;
+            Color c = renderer.color;
+            if (Time.time < 7) {
+                c.a = 0;
+            } else {
+                c.a = Mathf.InverseLerp(7, 10, Time.time);
+            }
+            renderer.color = c;
+        }
+        // Switch clicking.
         Collider collider = (won || lost) ? null : Util.GetMouseCollider(layerMaskSwitch);
         if (collider == null || !switchColliders.ContainsKey(collider)) {
             foreach (var kvp in switchCircleRenderers) {
@@ -268,6 +291,7 @@ public class GameScript : MonoBehaviour {
             }
             sweetch.Flip();
             sfxSwitch.Play();
+            clickTally++;
         }
     }
     void UpdateSwitches() {
@@ -370,6 +394,7 @@ public class GameScript : MonoBehaviour {
         }
         if (lost) {
             Instantiate(prefabCollisionSign, root.transform).transform.localPosition = signPosition;
+            crashTally++;
         }
     }
 
