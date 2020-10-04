@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Model;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,31 @@ namespace Assets.Code {
     public class Util {
         public static int CountTrue(params bool[] arr) {
             return arr.Count(b => b);
+        }
+
+        public static LevelExitDirection GetOppositeDirection(LevelExitDirection direction) {
+            if (direction == LevelExitDirection.Down) {
+                return LevelExitDirection.Up;
+            }
+            if (direction == LevelExitDirection.Left) {
+                return LevelExitDirection.Right;
+            }
+            if (direction == LevelExitDirection.Right) {
+                return LevelExitDirection.Left;
+            }
+            return LevelExitDirection.Down;
+        }
+        public static Vector3 GetDirectionVector(LevelExitDirection direction, float magnitude) {
+            if (direction == LevelExitDirection.Down) {
+                return new Vector3(0, 0, -magnitude);
+            }
+            if (direction == LevelExitDirection.Left) {
+                return new Vector3(-magnitude, 0, 0);
+            }
+            if (direction == LevelExitDirection.Right) {
+                return new Vector3(magnitude, 0, 0);
+            }
+            return new Vector3(0, 0, magnitude);
         }
 
         static Camera mainCamera;

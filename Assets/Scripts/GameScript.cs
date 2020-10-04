@@ -10,32 +10,69 @@ using UnityEngine.SceneManagement;
 
 public class GameScript : MonoBehaviour {
     static float SPEED = .066f;
+    static float ACCEL = SPEED / 60;
+    static float TRANSITION_DISTANCE = 50;
+    static float TRANSITION_SPEED = .005f;
 
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign, prefabSwitchCircle, prefabTree;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteNoCargo;
-    public AudioMixer audioMixer;
     public AudioSource sfxSwitch;
-    public TextAsset textLevel;
+    public GameObject gridObject;
+    public AudioMixer audioMixer;
+    public TextAsset[] levelTexts;
     public LayerMask layerMaskSwitch;
 
     public Camera cam;
 
     float t;
     float speed = SPEED;
-    Level level;
-    GameObject root;
+    int levelIndex = 1;
+    Level level, lastLevel;
+    GameObject root, lastRoot;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
     Dictionary<Collider, Switch> switchColliders;
     Dictionary<Switch, SpriteRenderer> switchCircleRenderers;
     Dictionary<Train, GameObject> trainObjects;
-    List<Train> deadTrains;
-    bool won = false, lost = false;
+    bool won, lost;
     float wonTime;
+    float lostLerpT;
+    float transitionT;
+    Vector3 transitionFrom, transitionTo;
 
     void Awake() {
         Application.targetFrameRate = 60;
-        level = new Level(textLevel);
+        trainObjects = new Dictionary<Train, GameObject>();
+        Restart();
+        cam.orthographicSize = 1 + Mathf.Max(level.tiles.GetLength(0), level.tiles.GetLength(1)) / 3.25f;
+    }
+    void Restart(bool wipe = true) {
+        level = new Level(levelTexts[levelIndex]);
+        if (wipe) {
+            Destroy(root);
+        }
+        speed = SPEED;
+        won = false;
+        lost = false;
+        wonTime = 0;
+        lostLerpT = 1;
         ConstructLevel();
+        UpdateTrains(level);
+        UpdateSwitches();
+    }
+    void TransitionToNextLevel() {
+        levelIndex++;
+        lastLevel = level;
+        lastRoot = root;
+        Restart(false);
+        // Place the newly constructed level.
+        List<LevelExitDirection> possibleDirections = new List<LevelExitDirection>(Enum.GetValues(typeof(LevelExitDirection)) as LevelExitDirection[]);
+        possibleDirections.Remove(lastLevel.exitDirection);
+        possibleDirections.Remove(Util.GetOppositeDirection(level.exitDirection));
+        LevelExitDirection direction = possibleDirections[UnityEngine.Random.Range(0, possibleDirections.Count)];
+        transitionT = 0;
+        transitionTo = root.transform.localPosition;
+        root.transform.localPosition += Util.GetDirectionVector(direction, TRANSITION_DISTANCE);
+        transitionFrom = root.transform.localPosition;
     }
     void ConstructLevel() {
         root = new GameObject("Level");
@@ -66,9 +103,11 @@ public class GameScript : MonoBehaviour {
                         int dx = 0, dy = 0;
                         if (trackLeft || trackRight) {
                             dx = trackLeft ? 1 : -1;
+                            level.exitDirection = trackLeft ? LevelExitDirection.Right : LevelExitDirection.Left;
                             trackObject.transform.Rotate(0, 0, 90);
                         } else {
                             dy = trackUp ? 1 : -1;
+                            level.exitDirection = trackLeft ? LevelExitDirection.Down : LevelExitDirection.Up;
                         }
                         // Draw additional track segments to the edge of the screen.
                         for (int i = 1; i <= 20; i++) {
@@ -112,18 +151,16 @@ public class GameScript : MonoBehaviour {
             }
         }
         // Place trains.
-        trainObjects = new Dictionary<Train, GameObject>();
         foreach (Train train in level.trains) {
             trainObjects[train] = Instantiate(train.isPlayer ? prefabPlayerTrain : prefabTrain, root.transform);
         }
-        deadTrains = new List<Train>();
         // Place trees.
         int width = level.tiles.GetLength(0);
         int height = level.tiles.GetLength(1);
         int maxDim = Mathf.Max(width, height);
         HashSet<Tuple<int, int>> treeCoors = new HashSet<Tuple<int, int>>();
         UnityEngine.Random.State prevRandom = UnityEngine.Random.state;
-        UnityEngine.Random.InitState(textLevel.name.GetHashCode());
+        UnityEngine.Random.InitState(levelTexts[levelIndex].name.GetHashCode());
         for (int i = 0; i < maxDim * maxDim / 2; i++) {
             int x = UnityEngine.Random.Range(-maxDim, maxDim * 2);
             int y = UnityEngine.Random.Range(-maxDim, maxDim * 2);
@@ -138,28 +175,59 @@ public class GameScript : MonoBehaviour {
                 continue;
             }
             treeCoors.Add(treeCoor);
-            Instantiate(prefabTree, root.transform).transform.localPosition = new Vector3(treeCoor.Item1, 0, -treeCoor.Item2);
+            GameObject tree = Instantiate(prefabTree, root.transform);
+            tree.transform.localPosition = new Vector3(treeCoor.Item1, 0, -treeCoor.Item2);
+            tree.GetComponent<TreeScript>().Init();
         }
         UnityEngine.Random.state = prevRandom;
         // Shift to center and zoom camera.
         root.transform.localPosition = new Vector3(-width / 2, .001f, height / 2);
-        cam.orthographicSize = 1 + maxDim / 3.5f;
     }
 
-    void Update()
-    {
+    void Update() {
+        if (lastLevel != null) {
+            UpdateTransition();
+            return;
+        }
         if (Input.GetKeyDown(KeyCode.Escape)) {
             Application.Quit();
             return;
         }
-        if (Input.GetKeyDown(KeyCode.R)) {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (!won && Input.GetKeyDown(KeyCode.R)) {
+            Restart();
             return;
         }
         UpdateMouse();
         UpdateSwitches();
-        UpdateTrains();
+        UpdateTrains(level);
         UpdateAudio();
+        if (wonTime > 12) {
+            TransitionToNextLevel();
+        }
+    }
+    void UpdateTransition() {
+        UpdateTrains(lastLevel, false);
+        transitionT = Mathf.Min(1, transitionT + TRANSITION_SPEED);
+        float easedT = EasingFunction.EaseInOutQuad(0, 1, transitionT);
+        Vector3 lastPos = root.transform.localPosition;
+        root.transform.localPosition = Vector3.Lerp(transitionFrom, transitionTo, easedT);
+        Vector3 delta = root.transform.localPosition - lastPos;
+        lastRoot.transform.localPosition += delta;
+        gridObject.transform.localPosition += delta;
+        gridObject.transform.localPosition = new Vector3(gridObject.transform.localPosition.x % 1, gridObject.transform.localPosition.y, gridObject.transform.localPosition.z % 1);
+        float lastZoom = 1 + Mathf.Max(lastLevel.tiles.GetLength(0), lastLevel.tiles.GetLength(1)) / 3.25f;
+        float nextZoom = 1 + Mathf.Max(level.tiles.GetLength(0), level.tiles.GetLength(1)) / 3.25f;
+        cam.orthographicSize = Mathf.Lerp(lastZoom, nextZoom, easedT);
+        if (transitionT >= 1) {
+            foreach (Train train in lastLevel.trains) {
+                trainObjects.Remove(train);
+            }
+            foreach (Train train in lastLevel.deadTrains) {
+                trainObjects.Remove(train);
+            }
+            lastLevel = null;
+            Destroy(lastRoot);
+        }
     }
     void UpdateMouse() {
         Collider collider = (won || lost) ? null : Util.GetMouseCollider(layerMaskSwitch);
@@ -200,74 +268,82 @@ public class GameScript : MonoBehaviour {
             }
         }
     }
-    void UpdateTrains() {
+    void UpdateTrains(Level trainLevel, bool realUpdate = true) {
         if (lost) {
-            speed *= .88f;
+            speed *= lostLerpT;
         }
         t += speed;
         if (won) {
             wonTime += speed;
         }
-        if (wonTime > 12) {
-            // TODO: level transition
-        }
         if (t >= 1) {
             t -= 1;
-            for (int i = level.trains.Count - 1; i >= 0;  i--) {
-                Train train = level.trains[i];
-                if (train.nextCoor.Equals(level.exit)) {
-                    if (won || train.isPlayer) {
+            for (int i = trainLevel.trains.Count - 1; i >= 0; i--) {
+                Train train = trainLevel.trains[i];
+                if (train.nextCoor.Equals(trainLevel.exit)) {
+                    if (train.isPlayer && realUpdate) {
                         won = true;
-                        deadTrains.Add(train);
-                        level.trains.RemoveAt(i);
-                    } else if (!won) {
+                    } else if (!won && realUpdate) {
                         // The player train must be first to leave the level.
                         lost = true;
-                        deadTrains.Add(train);
-                        level.trains.RemoveAt(i);
+                        lostLerpT = .88f;
                         GameObject sign = Instantiate(prefabCollisionSign, root.transform);
                         sign.transform.localPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
                         sign.transform.GetChild(0).GetComponent<SpriteRenderer>().sprite = spriteNoCargo;
                     }
+                    trainLevel.deadTrains.Add(train);
+                    trainLevel.trains.RemoveAt(i);
                 } else {
-                    train.Update(level.GetNextCoor(train.nextCoor, train.coor));
+                    train.Update(trainLevel.GetNextCoor(train.nextCoor, train.coor));
                 }
             }
-            // Check for collisions.
-            HashSet<Tuple<int, int>> collisions = new HashSet<Tuple<int, int>>();
-            foreach (Train train in level.trains) {
-                Tuple<int, int> collision = train.nextCoor;
-                if (collisions.Contains(collision)) {
-                    continue;
-                }
-                collisions.Add(collision);
-                foreach (Train other in level.trains) {
-                    if (train == other) {
-                        continue;
-                    }
-                    if (train.nextCoor.Equals(other.nextCoor) || (train.nextCoor.Equals(other.coor) && other.nextCoor.Equals(train.coor))) {
-                        lost = true;
-                        Instantiate(prefabCollisionSign, root.transform).transform.localPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
-                    }
-                }
+            if (realUpdate) {
+                CollisionCheck();
             }
         }
-        foreach (Train train in level.trains) {
+        foreach (Train train in trainLevel.trains) {
             GameObject trainObject = trainObjects[train];
-            var oldTransform = level.GetTransform(train.coor, train.lastCoor);
-            var newTransform = level.GetTransform(train.nextCoor, train.coor);
+            var oldTransform = trainLevel.GetTransform(train.coor, train.lastCoor);
+            var newTransform = trainLevel.GetTransform(train.nextCoor, train.coor);
             float x = Util.EaseTrack(oldTransform.Item1.x, newTransform.Item1.x, t);
             float z = Util.EaseTrack(oldTransform.Item1.z, newTransform.Item1.z, t);
             trainObject.transform.localPosition = new Vector3(x, 0, z);
             trainObject.transform.localRotation = Quaternion.Lerp(oldTransform.Item2, newTransform.Item2, t);
         }
-        foreach (Train train in deadTrains) {
+        foreach (Train train in trainLevel.deadTrains) {
             GameObject trainObject = trainObjects[train];
             float dx = train.nextCoor.Item1 - train.coor.Item1;
             float dz = train.nextCoor.Item2 - train.coor.Item2;
             trainObject.transform.Translate(dx * speed, 0, -dz * speed, Space.World);
         }
     }
+    void CollisionCheck() {
+        if (lost) {
+            return;
+        }
+        Vector3 signPosition = Vector3.zero;
+        foreach (Train train in level.trains) {
+            foreach (Train other in level.trains) {
+                if (train == other) {
+                    continue;
+                }
+                if (train.nextCoor.Equals(other.coor) && other.nextCoor.Equals(train.coor)) {
+                    lost = true;
+                    lostLerpT = .1f;
+                    signPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
+                }
+                if (train.nextCoor.Equals(other.nextCoor)) {
+                    lost = true;
+                    lostLerpT = Mathf.Min(lostLerpT, .88f);
+                    signPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
+                }
+            }
+        }
+        if (lost) {
+            Instantiate(prefabCollisionSign, root.transform).transform.localPosition = signPosition;
+        }
+    }
+
     void UpdateAudio() {
         audioMixer.SetFloat("TrainVol", Mathf.Lerp(-15, -80, Mathf.InverseLerp(SPEED, 0, speed)));
     }

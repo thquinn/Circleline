@@ -6,9 +6,7 @@ public class TreeScript : MonoBehaviour
 {
     float frequency, offset, strength;
 
-    // Start is called before the first frame update
-    void Start()
-    {
+    public void Init() {
         float offX = (Random.value - .5f) * .5f;
         float offY = (Random.value - .5f) * .5f;
         float treeTheta = Random.Range(-10f, 20f);
@@ -21,6 +19,7 @@ public class TreeScript : MonoBehaviour
         frequency = Random.Range(.6f, 1f);
         offset = Random.value * 2 * Mathf.PI;
         strength = Random.Range(5, 8);
+        Update();
     }
 
     // Update is called once per frame

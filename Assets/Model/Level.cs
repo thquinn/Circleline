@@ -12,9 +12,10 @@ namespace Assets.Model {
         static float CURVE_WEIGHT = .33f;
 
         public LevelTile[,] tiles;
-        public List<Train> trains;
+        public List<Train> trains, deadTrains;
         public Dictionary<Tuple<int, int>, Switch> switches;
         public Tuple<int, int> exit = new Tuple<int, int>(-1, -1);
+        public LevelExitDirection exitDirection;
 
         public Level(TextAsset text) {
             string[] chunks = Regex.Split(text.text, "\r\n\r\n|\n\n|\r\r");
@@ -91,6 +92,7 @@ namespace Assets.Model {
                     trains.Add(new Train(lastTrain.coor, lastTrain.nextCoor, GetNextCoor(lastTrain.nextCoor, lastTrain.coor), trainToPlace.Key.Equals(playerCoor) && i == trainToPlace.Value - 1 && trainToPlace.Value > 1));
                 }
             }
+            deadTrains = new List<Train>();
         }
 
         public Tuple<int, int> GetNextCoor(Tuple<int, int> coor, Tuple<int, int> last) {
@@ -177,6 +179,9 @@ namespace Assets.Model {
 
     public enum LevelTile {
         Ground, Track
+    }
+    public enum LevelExitDirection {
+        Left, Up, Right, Down
     }
 
     public class Switch {

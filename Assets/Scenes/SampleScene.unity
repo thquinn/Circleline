@@ -887,9 +887,15 @@ MonoBehaviour:
   spriteTrackSwitchTurn: {fileID: 21300000, guid: 2ed5a3b0e76efca43a0a10f459bc71ab,
     type: 3}
   spriteNoCargo: {fileID: 21300000, guid: 9484b61efd48d3649ab7629cc8d369a6, type: 3}
-  audioMixer: {fileID: 24100000, guid: 78ca80a7f5952c145b704eff8908561c, type: 2}
   sfxSwitch: {fileID: 1296156402}
-  textLevel: {fileID: 4900000, guid: c6493c9b76ebcc640a9def12d141268f, type: 3}
+  gridObject: {fileID: 1641976064}
+  audioMixer: {fileID: 24100000, guid: 78ca80a7f5952c145b704eff8908561c, type: 2}
+  levelTexts:
+  - {fileID: 4900000, guid: 02f7d11ed56a67c43ada71064b10e4f7, type: 3}
+  - {fileID: 4900000, guid: 76b71aaf7085313429e766d9a657f15f, type: 3}
+  - {fileID: 4900000, guid: e6215fca478bf0b488f550faa1ce3973, type: 3}
+  - {fileID: 4900000, guid: 3d2a522126b08034ba41a54e292ee9a3, type: 3}
+  - {fileID: 4900000, guid: c6493c9b76ebcc640a9def12d141268f, type: 3}
   layerMaskSwitch:
     serializedVersion: 2
     m_Bits: 768
@@ -1034,7 +1040,7 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 8300000, guid: 3511ebb9a698e8b46998bfd32ab0e59b, type: 3}
   m_PlayOnAwake: 1
-  m_Volume: 1
+  m_Volume: 0.8
   m_Pitch: 1
   Loop: 1
   Mute: 0
