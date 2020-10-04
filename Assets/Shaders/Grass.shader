@@ -54,11 +54,12 @@
             sparseness = lerp(.7, .9, sparseness);
             float2 mainUV = IN.uv_MainTex;
             float2 windUV = IN.uv_WindTex;
-            windUV.x += _Time.y * .01;
-            windUV.y -= _Time.y * .03;
+            windUV.x += _Time.y * .005;
+            windUV.y -= _Time.y * .015;
             float wind = tex2D (_WindTex, windUV);
             mainUV.xy += wind * .066;
-            fixed4 texCol = lerp(tex2D (_MainTex, mainUV), fixed4(1, 1, 1, 1), sparseness + wind * .3);
+            fixed4 texCol = lerp(tex2D (_MainTex, mainUV), fixed4(1, 1, 1, 1), sparseness);
+            texCol = lerp(texCol, fixed4(1, 1, 1, 1), wind * 3);
             fixed4 c = texCol * _Color;
             o.Albedo = c.rgb;
             o.Metallic = _Metallic;

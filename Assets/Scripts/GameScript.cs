@@ -14,6 +14,7 @@ public class GameScript : MonoBehaviour {
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign, prefabSwitchCircle, prefabTree;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteNoCargo;
     public AudioMixer audioMixer;
+    public AudioSource sfxSwitch;
     public TextAsset textLevel;
     public LayerMask layerMaskSwitch;
 
@@ -25,7 +26,7 @@ public class GameScript : MonoBehaviour {
     GameObject root;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
     Dictionary<Collider, Switch> switchColliders;
-    Dictionary<Switch, GameObject> switchCircles;
+    Dictionary<Switch, SpriteRenderer> switchCircleRenderers;
     Dictionary<Train, GameObject> trainObjects;
     List<Train> deadTrains;
     bool won = false, lost = false;
@@ -40,7 +41,7 @@ public class GameScript : MonoBehaviour {
         root = new GameObject("Level");
         switchRenderers = new Dictionary<Switch, SpriteRenderer>();
         switchColliders = new Dictionary<Collider, Switch>();
-        switchCircles = new Dictionary<Switch, GameObject>();
+        switchCircleRenderers = new Dictionary<Switch, SpriteRenderer>();
         HashSet<Tuple<int, int>> extraTrackCoors = new HashSet<Tuple<int, int>>();
         // Place tracks.
         for (int y = 0; y < level.tiles.GetLength(1); y++) {
@@ -70,7 +71,7 @@ public class GameScript : MonoBehaviour {
                             dy = trackUp ? 1 : -1;
                         }
                         // Draw additional track segments to the edge of the screen.
-                        for (int i = 1; i <= 10; i++) {
+                        for (int i = 1; i <= 20; i++) {
                             GameObject extraTrack = Instantiate(prefabTrack, root.transform);
                             int extraX = x + dx * i;
                             int extraY = y + dy * i;
@@ -91,7 +92,7 @@ public class GameScript : MonoBehaviour {
                         if (sweetch.interaction == SwitchInteraction.Click) {
                             GameObject switchCircle = Instantiate(prefabSwitchCircle, root.transform);
                             switchCircle.transform.localPosition = new Vector3(x, 0, -y);
-                            switchCircles[sweetch] = switchCircle;
+                            switchCircleRenderers[sweetch] = switchCircle.transform.GetChild(0).GetComponent<SpriteRenderer>();
                         }
                     } else if (trackLeft && trackRight) {
                         trackObject.transform.Rotate(0, 0, 90);
@@ -121,6 +122,7 @@ public class GameScript : MonoBehaviour {
         int height = level.tiles.GetLength(1);
         int maxDim = Mathf.Max(width, height);
         HashSet<Tuple<int, int>> treeCoors = new HashSet<Tuple<int, int>>();
+        UnityEngine.Random.State prevRandom = UnityEngine.Random.state;
         UnityEngine.Random.InitState(textLevel.name.GetHashCode());
         for (int i = 0; i < maxDim * maxDim / 2; i++) {
             int x = UnityEngine.Random.Range(-maxDim, maxDim * 2);
@@ -136,14 +138,9 @@ public class GameScript : MonoBehaviour {
                 continue;
             }
             treeCoors.Add(treeCoor);
-            float offX = (UnityEngine.Random.value - .5f) * .5f;
-            float offY = (UnityEngine.Random.value - .5f) * .5f;
-            float theta = UnityEngine.Random.value * 360;
-            GameObject treeObject = Instantiate(prefabTree, root.transform);
-            treeObject.transform.GetChild(UnityEngine.Random.Range(0, 2)).gameObject.SetActive(false);
-            treeObject.transform.localPosition = new Vector3(treeCoor.Item1 + offX, 0, -treeCoor.Item2 + offY);
-            treeObject.transform.localRotation = Quaternion.Euler(0, theta, 0);
+            Instantiate(prefabTree, root.transform).transform.localPosition = new Vector3(treeCoor.Item1, 0, -treeCoor.Item2);
         }
+        UnityEngine.Random.state = prevRandom;
         // Shift to center and zoom camera.
         root.transform.localPosition = new Vector3(-width / 2, .001f, height / 2);
         cam.orthographicSize = 1 + maxDim / 3.5f;
@@ -167,17 +164,17 @@ public class GameScript : MonoBehaviour {
     void UpdateMouse() {
         Collider collider = (won || lost) ? null : Util.GetMouseCollider(layerMaskSwitch);
         if (collider == null || !switchColliders.ContainsKey(collider)) {
-            foreach (var kvp in switchCircles) {
-                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(1, 1, 1), .2f);
+            foreach (var kvp in switchCircleRenderers) {
+                kvp.Value.transform.parent.localScale = Vector3.Lerp(kvp.Value.transform.parent.localScale, new Vector3(1, 1, 1), .2f);
             }
             return;
         }
         Switch sweetch = switchColliders[collider];
-        foreach (var kvp in switchCircles) {
+        foreach (var kvp in switchCircleRenderers) {
             if (kvp.Key == sweetch) {
-                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(.9f, .9f, .9f), .2f);
+                kvp.Value.transform.parent.localScale = Vector3.Lerp(kvp.Value.transform.parent.localScale, new Vector3(.9f, .9f, .9f), .2f);
             } else {
-                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(1, 1, 1), .2f);
+                kvp.Value.transform.parent.localScale = Vector3.Lerp(kvp.Value.transform.parent.localScale, new Vector3(1, 1, 1), .2f);
             }
         }
         if (Input.GetMouseButtonDown(0)) {
@@ -187,6 +184,7 @@ public class GameScript : MonoBehaviour {
                 }
             }
             sweetch.Flip();
+            sfxSwitch.Play();
         }
     }
     void UpdateSwitches() {
@@ -271,6 +269,6 @@ public class GameScript : MonoBehaviour {
         }
     }
     void UpdateAudio() {
-        audioMixer.SetFloat("TrainVol", Mathf.Lerp(0, -80, Mathf.InverseLerp(SPEED, 0, speed)));
+        audioMixer.SetFloat("TrainVol", Mathf.Lerp(-15, -80, Mathf.InverseLerp(SPEED, 0, speed)));
     }
 }

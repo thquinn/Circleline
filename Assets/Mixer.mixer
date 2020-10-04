@@ -30,6 +30,8 @@ AudioMixerController:
   m_EnableSuspend: 1
   m_UpdateMode: 0
   m_ExposedParameters:
+  - guid: dab38b689da5f31468729bc6168b579d
+    name: MasterVol
   - guid: a99addea08a657547a136c6a2d162749
     name: TrainVol
   m_AudioMixerGroupViews:
@@ -84,6 +86,7 @@ AudioMixerSnapshotController:
   m_SnapshotID: d28ac1e23a21856429eb7cce70379b88
   m_FloatValues:
     5b57cfb2c0b292246b594e6548deb8a8: 10
+    dab38b689da5f31468729bc6168b579d: -0.002441872
     a99addea08a657547a136c6a2d162749: 0
   m_TransitionOverrides: {}
 --- !u!243 &682573360125747289
