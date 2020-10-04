@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class GameScript : MonoBehaviour {
-    static float SPEED = .015f;
+    static float SPEED = .0015f;
 
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn;
@@ -51,7 +51,6 @@ public class GameScript : MonoBehaviour {
                     bool trackUp = y > 0 && level.tiles[x, y - 1] == LevelTile.Track;
                     bool trackRight = x < level.tiles.GetLength(0) - 1 && level.tiles[x + 1, y] == LevelTile.Track;
                     bool trackDown = y < level.tiles.GetLength(1) - 1 && level.tiles[x, y + 1] == LevelTile.Track;
-                    
                     if (level.exit.Equals(coor)) {
                         int dx = 0, dy = 0;
                         if (trackLeft || trackRight) {
@@ -143,7 +142,7 @@ public class GameScript : MonoBehaviour {
         if (won) {
             wonTime += SPEED;
         }
-        if (wonTime > 10) {
+        if (wonTime > 12) {
             UnityEditor.EditorApplication.isPlaying = false;
         }
         if (t >= 1) {
@@ -174,7 +173,7 @@ public class GameScript : MonoBehaviour {
                 targetAngle -= 180;
             }
             trainObject.transform.localPosition = new Vector3(x, 0, z);
-            bool flip = train.nextCoor.Item1 - train.coor.Item1 > 0 || train.nextCoor.Item2 - train.coor.Item2 > 0;
+            bool flip = train.nextCoor.Item1 - train.coor.Item1 >= 0 || train.nextCoor.Item2 - train.coor.Item2 > 0;
             trainObject.transform.localRotation = Quaternion.Euler(0, Mathf.Lerp(oldTransform.Item2, targetAngle, t) + (flip ? 180 : 0), 0);
         }
         foreach (Train train in deadTrains) {

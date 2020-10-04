@@ -14,18 +14,21 @@ namespace Assets.Model {
         public LevelTile[,] tiles;
         public List<Train> trains;
         public Dictionary<Tuple<int, int>, Switch> switches;
-        public Tuple<int, int> exit;
+        public Tuple<int, int> exit = new Tuple<int, int>(-1, -1);
 
         public Level(TextAsset text) {
             string[] chunks = Regex.Split(text.text, "\r\n\r\n|\n\n|\r\r");
             // Metadata.
             Tuple<int, int> playerCoor = new Tuple<int, int>(-1, -1);
+            HashSet<Tuple<int, int>> reversedTrains = new HashSet<Tuple<int, int>>();
             string[] lines = Regex.Split(chunks[1], "\r\n|\n|\r");
             foreach (string line in lines) {
                 string[] args = line.Split('\t');
                 string[] tokens = args[1].Split(' ');
                 if (args[0] == "P") {
                     playerCoor = new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]));
+                } else if (args[0] == "R") {
+                    reversedTrains.Add(new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1])));
                 }
             }
             Debug.Assert(playerCoor.Item1 != -1, string.Format("No player coordinate found in level '{0}'.", text.name));
@@ -56,6 +59,7 @@ namespace Assets.Model {
                     }
                 }
             }
+            Debug.Assert(exit.Item1 != -1, string.Format("No exit found in level '{0}'.", text.name));
             // Second pass to place switches.
             switches = new Dictionary<Tuple<int, int>, Switch>();
             for (int y = 0; y < tiles.GetLength(1); y++) {
@@ -77,7 +81,9 @@ namespace Assets.Model {
             trains = new List<Train>();
             foreach (var trainToPlace in trainsToPlace) {
                 Tuple<int, int>[] neighbors = GetNeighbors(trainToPlace.Key);
-                trains.Add(new Train(neighbors[1], trainToPlace.Key, neighbors[0], trainToPlace.Key.Equals(playerCoor) && trainToPlace.Value == 1));
+                Tuple<int, int> firstCoor = reversedTrains.Contains(trainToPlace.Key) ? neighbors[0] : neighbors[1];
+                Tuple<int, int> secondCoor = reversedTrains.Contains(trainToPlace.Key) ? neighbors[1] : neighbors[0];
+                trains.Add(new Train(firstCoor, trainToPlace.Key, secondCoor, trainToPlace.Key.Equals(playerCoor) && trainToPlace.Value == 1));
                 for (int i = 1; i < trainToPlace.Value; i++) {
                     Train lastTrain = trains[trains.Count - 1];
                     trains.Add(new Train(lastTrain.coor, lastTrain.nextCoor, GetNextCoor(lastTrain.nextCoor, lastTrain.coor), trainToPlace.Key.Equals(playerCoor) && i == trainToPlace.Value - 1 && trainToPlace.Value > 1));
