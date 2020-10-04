@@ -5,28 +5,34 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
 
 public class GameScript : MonoBehaviour {
-    static float SPEED = .015f;
+    static float SPEED = .066f;
 
-    public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign;
-    public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn;
+    public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign, prefabSwitchCircle, prefabTree;
+    public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteNoCargo;
+    public AudioMixer audioMixer;
     public TextAsset textLevel;
     public LayerMask layerMaskSwitch;
 
     public Camera cam;
 
     float t;
+    float speed = SPEED;
     Level level;
     GameObject root;
     Dictionary<Switch, SpriteRenderer> switchRenderers;
     Dictionary<Collider, Switch> switchColliders;
+    Dictionary<Switch, GameObject> switchCircles;
     Dictionary<Train, GameObject> trainObjects;
     List<Train> deadTrains;
     bool won = false, lost = false;
     float wonTime;
 
     void Awake() {
+        Application.targetFrameRate = 60;
         level = new Level(textLevel);
         ConstructLevel();
     }
@@ -34,6 +40,8 @@ public class GameScript : MonoBehaviour {
         root = new GameObject("Level");
         switchRenderers = new Dictionary<Switch, SpriteRenderer>();
         switchColliders = new Dictionary<Collider, Switch>();
+        switchCircles = new Dictionary<Switch, GameObject>();
+        HashSet<Tuple<int, int>> extraTrackCoors = new HashSet<Tuple<int, int>>();
         // Place tracks.
         for (int y = 0; y < level.tiles.GetLength(1); y++) {
             for (int x = 0; x < level.tiles.GetLength(0); x++) {
@@ -44,7 +52,7 @@ public class GameScript : MonoBehaviour {
                     // Choose and rotate sprite.
                     SpriteRenderer trackRenderer = trackObject.GetComponent<SpriteRenderer>();
                     Collider trackCollider = trackObject.GetComponentInChildren<Collider>();
-                    if (level.switches.ContainsKey(coor)) {
+                    if (level.switches.ContainsKey(coor) && level.switches[coor].interaction == SwitchInteraction.Click) {
                         switchColliders[trackCollider] = level.switches[coor];
                     } else {
                         trackCollider.enabled = false;
@@ -64,17 +72,26 @@ public class GameScript : MonoBehaviour {
                         // Draw additional track segments to the edge of the screen.
                         for (int i = 1; i <= 10; i++) {
                             GameObject extraTrack = Instantiate(prefabTrack, root.transform);
-                            extraTrack.transform.localPosition = new Vector3(x + dx * i, 0, -y - dy * i);
+                            int extraX = x + dx * i;
+                            int extraY = y + dy * i;
+                            extraTrack.transform.localPosition = new Vector3(extraX, 0, -extraY);
                             extraTrack.transform.Rotate(0, 0, dx == 0 ? 0 : 90);
+                            extraTrackCoors.Add(new Tuple<int, int>(extraX, extraY));
                         }
                     } else if (level.switches.ContainsKey(coor)) {
-                        switchRenderers[level.switches[coor]] = trackRenderer;
+                        Switch sweetch = level.switches[coor];
+                        switchRenderers[sweetch] = trackRenderer;
                         if (!trackLeft) {
                             trackObject.transform.Rotate(0, 0, 90);
                         } else if (!trackDown) {
                             trackObject.transform.Rotate(0, 0, 180);
                         } else if (!trackRight) {
                             trackObject.transform.Rotate(0, 0, 270);
+                        }
+                        if (sweetch.interaction == SwitchInteraction.Click) {
+                            GameObject switchCircle = Instantiate(prefabSwitchCircle, root.transform);
+                            switchCircle.transform.localPosition = new Vector3(x, 0, -y);
+                            switchCircles[sweetch] = switchCircle;
                         }
                     } else if (trackLeft && trackRight) {
                         trackObject.transform.Rotate(0, 0, 90);
@@ -99,25 +116,71 @@ public class GameScript : MonoBehaviour {
             trainObjects[train] = Instantiate(train.isPlayer ? prefabPlayerTrain : prefabTrain, root.transform);
         }
         deadTrains = new List<Train>();
+        // Place trees.
+        int width = level.tiles.GetLength(0);
+        int height = level.tiles.GetLength(1);
+        int maxDim = Mathf.Max(width, height);
+        HashSet<Tuple<int, int>> treeCoors = new HashSet<Tuple<int, int>>();
+        UnityEngine.Random.InitState(textLevel.name.GetHashCode());
+        for (int i = 0; i < maxDim * maxDim / 2; i++) {
+            int x = UnityEngine.Random.Range(-maxDim, maxDim * 2);
+            int y = UnityEngine.Random.Range(-maxDim, maxDim * 2);
+            Tuple<int, int> treeCoor = new Tuple<int, int>(x, y);
+            if (treeCoors.Contains(treeCoor)) {
+                continue;
+            }
+            if (x >= 0 && x < width && y >= 0 && y < height && level.tiles[x, y] != LevelTile.Ground) {
+                continue;
+            }
+            if (extraTrackCoors.Contains(treeCoor)) {
+                continue;
+            }
+            treeCoors.Add(treeCoor);
+            float offX = (UnityEngine.Random.value - .5f) * .5f;
+            float offY = (UnityEngine.Random.value - .5f) * .5f;
+            float theta = UnityEngine.Random.value * 360;
+            GameObject treeObject = Instantiate(prefabTree, root.transform);
+            treeObject.transform.GetChild(UnityEngine.Random.Range(0, 2)).gameObject.SetActive(false);
+            treeObject.transform.localPosition = new Vector3(treeCoor.Item1 + offX, 0, -treeCoor.Item2 + offY);
+            treeObject.transform.localRotation = Quaternion.Euler(0, theta, 0);
+        }
         // Shift to center and zoom camera.
-        root.transform.localPosition = new Vector3(-level.tiles.GetLength(0) / 2, .001f, level.tiles.GetLength(1) / 2);
-        cam.orthographicSize = 1 + Mathf.Max(level.tiles.GetLength(0), level.tiles.GetLength(1)) / 4f;
+        root.transform.localPosition = new Vector3(-width / 2, .001f, height / 2);
+        cam.orthographicSize = 1 + maxDim / 3.5f;
     }
 
-    // Update is called once per frame
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            Application.Quit();
+            return;
+        }
+        if (Input.GetKeyDown(KeyCode.R)) {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return;
+        }
         UpdateMouse();
         UpdateSwitches();
         UpdateTrains();
+        UpdateAudio();
     }
     void UpdateMouse() {
-        if (Input.GetMouseButtonDown(0)) {
-            Collider collider = Util.GetMouseCollider(layerMaskSwitch);
-            if (collider == null || collider.gameObject.layer == 9) {
-                return;
+        Collider collider = (won || lost) ? null : Util.GetMouseCollider(layerMaskSwitch);
+        if (collider == null || !switchColliders.ContainsKey(collider)) {
+            foreach (var kvp in switchCircles) {
+                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(1, 1, 1), .2f);
             }
-            Switch sweetch = switchColliders[collider];
+            return;
+        }
+        Switch sweetch = switchColliders[collider];
+        foreach (var kvp in switchCircles) {
+            if (kvp.Key == sweetch) {
+                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(.9f, .9f, .9f), .2f);
+            } else {
+                kvp.Value.transform.localScale = Vector3.Lerp(kvp.Value.transform.localScale, new Vector3(1, 1, 1), .2f);
+            }
+        }
+        if (Input.GetMouseButtonDown(0)) {
             foreach (Train train in trainObjects.Keys) {
                 if (train.coor.Equals(sweetch.coor) || train.nextCoor.Equals(sweetch.coor)) {
                     return;
@@ -141,28 +204,36 @@ public class GameScript : MonoBehaviour {
     }
     void UpdateTrains() {
         if (lost) {
-            SPEED *= .97f;
+            speed *= .88f;
         }
-        t += SPEED;
+        t += speed;
         if (won) {
-            wonTime += SPEED;
+            wonTime += speed;
         }
         if (wonTime > 12) {
-            UnityEditor.EditorApplication.isPlaying = false;
+            // TODO: level transition
         }
         if (t >= 1) {
             t -= 1;
             for (int i = level.trains.Count - 1; i >= 0;  i--) {
                 Train train = level.trains[i];
                 if (train.nextCoor.Equals(level.exit)) {
-                    deadTrains.Add(train);
-                    level.trains.RemoveAt(i);
-                    if (train.isPlayer) {
+                    if (won || train.isPlayer) {
                         won = true;
+                        deadTrains.Add(train);
+                        level.trains.RemoveAt(i);
+                    } else if (!won) {
+                        // The player train must be first to leave the level.
+                        lost = true;
+                        deadTrains.Add(train);
+                        level.trains.RemoveAt(i);
+                        GameObject sign = Instantiate(prefabCollisionSign, root.transform);
+                        sign.transform.localPosition = new Vector3(train.nextCoor.Item1 + .5f, 0, -train.nextCoor.Item2 - .5f);
+                        sign.transform.GetChild(0).GetComponent<SpriteRenderer>().sprite = spriteNoCargo;
                     }
-                    continue;
+                } else {
+                    train.Update(level.GetNextCoor(train.nextCoor, train.coor));
                 }
-                train.Update(level.GetNextCoor(train.nextCoor, train.coor));
             }
             // Check for collisions.
             HashSet<Tuple<int, int>> collisions = new HashSet<Tuple<int, int>>();
@@ -196,7 +267,10 @@ public class GameScript : MonoBehaviour {
             GameObject trainObject = trainObjects[train];
             float dx = train.nextCoor.Item1 - train.coor.Item1;
             float dz = train.nextCoor.Item2 - train.coor.Item2;
-            trainObject.transform.Translate(dx * SPEED, 0, -dz * SPEED, Space.World);
+            trainObject.transform.Translate(dx * speed, 0, -dz * speed, Space.World);
         }
+    }
+    void UpdateAudio() {
+        audioMixer.SetFloat("TrainVol", Mathf.Lerp(0, -80, Mathf.InverseLerp(SPEED, 0, speed)));
     }
 }

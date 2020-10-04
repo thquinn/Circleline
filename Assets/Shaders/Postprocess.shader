@@ -1,4 +1,6 @@
-﻿Shader "Custom/PostProcess" {
+﻿// courtesy of https://www.ronja-tutorials.com/2018/08/27/postprocessing-blur.html
+
+Shader "Custom/PostProcess" {
     //show values to edit in inspector
     Properties{
         [HideInInspector]_MainTex ("Texture", 2D) = "white" {}

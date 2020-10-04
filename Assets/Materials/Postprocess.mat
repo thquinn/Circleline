@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Postprocess
   m_Shader: {fileID: 4800000, guid: e4c6907ed14eda24ea4139ab7e842243, type: 3}
-  m_ShaderKeywords: 
+  m_ShaderKeywords: _SAMPLES_LOW
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -57,7 +57,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _AspectRatio: 1.8210962
-    - _BlurSize: 0
+    - _BlurSize: 0.018
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1

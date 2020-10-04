@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿// courtesy of https://www.ronja-tutorials.com/2018/08/27/postprocessing-blur.html
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 

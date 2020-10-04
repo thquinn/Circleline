@@ -21,7 +21,8 @@ namespace Assets.Model {
             // Metadata.
             Tuple<int, int> playerCoor = new Tuple<int, int>(-1, -1);
             HashSet<Tuple<int, int>> reversedTrains = new HashSet<Tuple<int, int>>();
-            string[] lines = Regex.Split(chunks[1], "\r\n|\n|\r");
+            Dictionary<Tuple<int, int>, SwitchInteraction> switchInteractionOverrides = new Dictionary<Tuple<int, int>, SwitchInteraction>();
+            string[] lines = chunks.Length == 1 ? new string[] { } : Regex.Split(chunks[1], "\r\n|\n|\r");
             foreach (string line in lines) {
                 string[] args = line.Split('\t');
                 string[] tokens = args[1].Split(' ');
@@ -29,6 +30,8 @@ namespace Assets.Model {
                     playerCoor = new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]));
                 } else if (args[0] == "R") {
                     reversedTrains.Add(new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1])));
+                } else if (args[0] == "SN") {
+                    switchInteractionOverrides[new Tuple<int, int>(int.Parse(tokens[0]), int.Parse(tokens[1]))] = SwitchInteraction.None;
                 }
             }
             Debug.Assert(playerCoor.Item1 != -1, string.Format("No player coordinate found in level '{0}'.", text.name));
@@ -65,15 +68,14 @@ namespace Assets.Model {
             for (int y = 0; y < tiles.GetLength(1); y++) {
                 for (int x = 0; x < tiles.GetLength(0); x++) {
                     char c = lines[y][x];
+                    Tuple<int, int> coor = new Tuple<int, int>(x, y);
+                    SwitchInteraction switchInteraction = switchInteractionOverrides.ContainsKey(coor) ? switchInteractionOverrides[coor] : SwitchInteraction.Click;
                     if (c == 'f' || c == 'F') {
-                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
-                        switches[coor] = new Switch(this, SwitchType.Fork, coor, c == 'f' ? 0 : 1);
+                        switches[coor] = new Switch(this, SwitchType.Fork, coor, c == 'f' ? 0 : 1, switchInteraction);
                     } else if (c == 'l' || c == 'L') {
-                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
-                        switches[coor] = new Switch(this, SwitchType.Left, coor, c == 'l' ? 0 : 1);
+                        switches[coor] = new Switch(this, SwitchType.Left, coor, c == 'l' ? 0 : 1, switchInteraction);
                     } else if (c == 'r' || c == 'R') {
-                        Tuple<int, int> coor = new Tuple<int, int>(x, y);
-                        switches[coor] = new Switch(this, SwitchType.Right, coor, c == 'r' ? 0 : 1);
+                        switches[coor] = new Switch(this, SwitchType.Right, coor, c == 'r' ? 0 : 1, switchInteraction);
                     }
                 }
             }
@@ -182,11 +184,13 @@ namespace Assets.Model {
         public Tuple<int, int> coor;
         public int state;
         Tuple<int, int>[][] states;
+        public SwitchInteraction interaction;
 
-        public Switch(Level level, SwitchType type, Tuple<int, int> coor, int state) {
+        public Switch(Level level, SwitchType type, Tuple<int, int> coor, int state, SwitchInteraction interaction) {
             this.type = type;
             this.coor = coor;
             this.state = state;
+            this.interaction = interaction;
             int x = coor.Item1;
             int y = coor.Item2;
             bool trackLeft = x > 0 && level.tiles[x - 1, y] == LevelTile.Track;
@@ -240,5 +244,8 @@ namespace Assets.Model {
 
     public enum SwitchType {
         Left, Right, Fork
+    }
+    public enum SwitchInteraction {
+        None, Click
     }
 }

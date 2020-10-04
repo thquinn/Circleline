@@ -21,6 +21,15 @@ namespace Assets.Code {
             }
             return hit.collider;
         }
+        public static Vector3 GetMouseCollisionPoint(LayerMask layerMask) {
+            if (mainCamera == null) mainCamera = Camera.main;
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (!Physics.Raycast(ray, out hit, Mathf.Infinity, layerMask)) {
+                return Vector3.zero;
+            }
+            return hit.point;
+        }
 
         public static float EaseTrack(float one, float two, float t) {
             if (one == two) {
