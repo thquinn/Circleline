@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class GameScript : MonoBehaviour {
-    static float SPEED = .0015f;
+    static float SPEED = .015f;
 
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn;
@@ -166,15 +166,8 @@ public class GameScript : MonoBehaviour {
             var newTransform = level.GetTransform(train.nextCoor, train.coor);
             float x = Util.EaseTrack(oldTransform.Item1.x, newTransform.Item1.x, t);
             float z = Util.EaseTrack(oldTransform.Item1.z, newTransform.Item1.z, t);
-            float targetAngle = newTransform.Item2;
-            if (targetAngle - oldTransform.Item2 < -90) {
-                targetAngle += 180;
-            } else if (targetAngle - oldTransform.Item2 > 90) {
-                targetAngle -= 180;
-            }
             trainObject.transform.localPosition = new Vector3(x, 0, z);
-            bool flip = train.nextCoor.Item1 - train.coor.Item1 >= 0 || train.nextCoor.Item2 - train.coor.Item2 > 0;
-            trainObject.transform.localRotation = Quaternion.Euler(0, Mathf.Lerp(oldTransform.Item2, targetAngle, t) + (flip ? 180 : 0), 0);
+            trainObject.transform.localRotation = Quaternion.Lerp(oldTransform.Item2, newTransform.Item2, t);
         }
         foreach (Train train in deadTrains) {
             GameObject trainObject = trainObjects[train];

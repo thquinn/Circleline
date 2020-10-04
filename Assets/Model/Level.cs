@@ -135,7 +135,7 @@ namespace Assets.Model {
             return coors.ToArray();
         }
 
-        public Tuple<Vector3, float> GetTransform(Tuple<int, int> coor, Tuple<int, int> last) {
+        public Tuple<Vector3, Quaternion> GetTransform(Tuple<int, int> coor, Tuple<int, int> last) {
             Vector3 position;
             float rotation;
             Tuple<int, int> next = GetNextCoor(coor, last);
@@ -144,16 +144,32 @@ namespace Assets.Model {
             // Straight track.
             if (delta1.Equals(delta2)) {
                 position = new Vector3(coor.Item1, 0, -coor.Item2);
-                rotation = delta1.Item2 == 0 ? 0 : 90;
+                if (delta1.Item1 == -1) {
+                    rotation = 0;
+                } else if (delta1.Item1 == 1) {
+                    rotation = 180;
+                } else if (delta1.Item2 == -1) {
+                    rotation = 90;
+                } else {
+                    rotation = 270;
+                }
             } else {
                 float x = (coor.Item1 + last.Item1 * CURVE_WEIGHT + next.Item1 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
                 float y = (coor.Item2 + last.Item2 * CURVE_WEIGHT + next.Item2 * CURVE_WEIGHT) / (CURVE_WEIGHT * 2 + 1);
                 position = position = new Vector3(x, 0, -y);
-                int ddx = delta2.Item1 - delta1.Item1;
-                int ddy = delta2.Item2 - delta1.Item2;
-                rotation = ddx == ddy ? -45 : 45;
+                int sx = delta1.Item1 + delta2.Item1;
+                int sy = delta1.Item2 + delta2.Item2;
+                if (sx == -1 && sy == -1) {
+                    rotation = 45;
+                } else if (sx == 1 && sy == -1) {
+                    rotation = 135;
+                } else if (sx == -1 && sy == 1) {
+                    rotation = 315;
+                } else {
+                    rotation = 225;
+                }
             }
-            return new Tuple<Vector3, float>(position, rotation);
+            return new Tuple<Vector3, Quaternion>(position, Quaternion.Euler(0, rotation, 0));
         }
     }
 
