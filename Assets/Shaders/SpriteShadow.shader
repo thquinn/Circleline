@@ -8,21 +8,21 @@
         Tags 
     { 
         "Queue"="Geometry"
-        "RenderType"="TransparentCutout"
+        "RenderType"="Transparent"
     }
+        Blend SrcAlpha OneMinusSrcAlpha
         LOD 200
 
         Cull Off
 
         CGPROGRAM
         // Lambert lighting model, and enable shadows on all light types
-#pragma surface surf Lambert vertex:vert addshadow fullforwardshadows
+#pragma surface surf Lambert fullforwardshadows alphatest:_Cutoff vertex:vert
 
         // Use shader model 3.0 target, to get nicer looking lighting
 #pragma target 3.0
 
         sampler2D _MainTex;
-    fixed _Cutoff;
 
     struct Input
     {
@@ -40,7 +40,6 @@
         fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * IN.color;
         o.Albedo = c.rgb;
         o.Alpha = c.a;
-        clip(o.Alpha - _Cutoff);
     }
     ENDCG
     }
