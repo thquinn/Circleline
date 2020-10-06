@@ -1,12 +1,6 @@
-# Trains
- LD47
-
-* Auber CF font courtesy of Chuck Mountain
-* Locomotive SFX from [MeijstroAudio](https://freesound.org/people/MeijstroAudio/sounds/371885/)
-* Train track clattering SFX from [debsound](https://freesound.org/people/debsound/sounds/354062/)
-* Switch SFX from [Deathscyp](https://freesound.org/people/Deathscyp/sounds/404049/) and [sjturia](https://freesound.org/people/sjturia/sounds/370910/)
-* Wind and birds SFX from [Jay_You](https://freesound.org/people/Jay_You/sounds/460398/)
-* Sand-as-wind texture from [this Turbosquid tutorial](https://resources.turbosquid.com/library-tutorials/sand/)
-* Tilt-shift shader adapted from [Ronja Böhringer's tutorial here](https://www.ronja-tutorials.com/2018/08/27/postprocessing-blur.html)
-* SpriteRenderer shadow shader adapted from [anlev's example](https://github.com/anlev/Unity-2D-Sprite-cast-and-receive-shadows/blob/master/SpriteShadow.shader)
-* Everything I know about shaders, I learned from [Martijn Steinrucken](https://www.youtube.com/channel/UCcAlTqd9zID6aNX3TzwxJXg) and [Michael Ashworth](https://www.youtube.com/user/DaysAreRare)
+<a href="https://ldjam.com/events/ludum-dare/47/circleline">
+<div>
+  <img src="https://user-images.githubusercontent.com/1022438/95188733-dbdd3f00-079a-11eb-9c02-a93a1cd1398e.png" />
+  <p align="center">An easygoing train puzzler made in 48 hours for Ludum Dare 47</p>
+</div>
+</a>
