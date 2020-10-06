@@ -20,7 +20,7 @@ public class RestartPromptScript : MonoBehaviour
             tmp.text = gameScript.victoryText;
         }
 
-        bool showLevel3Timer = gameScript.levelIndex == 3 && level3Timer > 15 * 60;
+        bool showLevel3Timer = gameScript.levelIndex == 3 && level3Timer > 25 * 60;
         if (gameScript.lost || showLevel3Timer || gameScript.victoryText != "") {
             canvasGroup.alpha += .01f;
         } else {

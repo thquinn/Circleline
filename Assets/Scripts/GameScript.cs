@@ -17,7 +17,7 @@ public class GameScript : MonoBehaviour {
     public GameObject prefabTrack, prefabTrain, prefabPlayerTrain, prefabCollisionSign, prefabSwitchCircle, prefabTree;
     public Sprite spriteTrackTurn, spriteTrackSwitchFork, spriteTrackSwitchStraight, spriteTrackSwitchTurn, spriteTrackCross, spriteNoCargo;
     public AudioSource sfxSwitch, sfxSwitchAuto;
-    public GameObject gridObject;
+    public GameObject gridObject, smokesObject;
     public AudioMixer audioMixer;
     public TextAsset[] levelTexts;
     public LayerMask layerMaskSwitch;
@@ -25,7 +25,7 @@ public class GameScript : MonoBehaviour {
     public Camera cam;
 
     float t;
-    float speed;
+    public static float speed;
     public int levelIndex;
     Level level, lastLevel;
     GameObject root, lastRoot;
@@ -36,7 +36,7 @@ public class GameScript : MonoBehaviour {
     public bool won, lost;
     float wonTime;
     float lostLerpT;
-    float transitionT;
+    public static float transitionT;
     Vector3 transitionFrom, transitionTo;
     int clickTally, crashTally;
     public string victoryText;
@@ -66,7 +66,7 @@ public class GameScript : MonoBehaviour {
     }
     void TransitionToNextLevel() {
         if (levelIndex == levelTexts.Length - 1) {
-            victoryText = string.Format("Thanks for playing!\nYou won in {0} {1}.\nYou caused {2} {3}.\nPress Esc to quit.",
+            victoryText = string.Format("Thanks for playing!\nYou won in {0} {1}.\nYou caused {2} {3}.\nHold Esc to quit.",
                                         clickTally, clickTally == 1 ? "click" : "clicks",
                                         crashTally, crashTally == 1 ? "crash" : "crashes");
             return;
@@ -118,7 +118,7 @@ public class GameScript : MonoBehaviour {
                             trackObject.transform.Rotate(0, 0, 90);
                         } else {
                             dy = trackUp ? 1 : -1;
-                            level.exitDirection = trackLeft ? LevelExitDirection.Down : LevelExitDirection.Up;
+                            level.exitDirection = trackUp ? LevelExitDirection.Down : LevelExitDirection.Up;
                         }
                         // Draw additional track segments to the edge of the screen.
                         for (int i = 1; i <= 20; i++) {
@@ -200,12 +200,11 @@ public class GameScript : MonoBehaviour {
     }
 
     void Update() {
+        if (Input.GetKeyDown(KeyCode.F9)) {
+            ScreenCapture.CaptureScreenshot("ss.jpg");
+        }
         if (lastLevel != null) {
             UpdateTransition();
-            return;
-        }
-        if (Input.GetKeyDown(KeyCode.Escape)) {
-            Application.Quit();
             return;
         }
         bool canRestart = !won || lost;
@@ -220,7 +219,8 @@ public class GameScript : MonoBehaviour {
         }
         UpdateTrains(level);
         UpdateAudio();
-        if (wonTime > 12) {
+        bool skipLevel = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.S);
+        if (wonTime > 12 || skipLevel) {
             TransitionToNextLevel();
         }
     }
@@ -241,6 +241,7 @@ public class GameScript : MonoBehaviour {
         lastRoot.transform.localPosition += delta;
         gridObject.transform.localPosition += delta;
         gridObject.transform.localPosition = new Vector3(gridObject.transform.localPosition.x % 1, gridObject.transform.localPosition.y, gridObject.transform.localPosition.z % 1);
+        smokesObject.transform.localPosition += delta;
         float lastZoom = lastLevel.OrthographicSize();
         float nextZoom = level.OrthographicSize();
         cam.orthographicSize = Mathf.Lerp(lastZoom, nextZoom, easedT);
@@ -264,6 +265,15 @@ public class GameScript : MonoBehaviour {
                 c.a = 0;
             } else {
                 c.a = Mathf.InverseLerp(7, 10, Time.time);
+            }
+            renderer.color = c;
+            // Shadow.
+            renderer = renderer.transform.parent.GetChild(1).GetComponent<SpriteRenderer>();
+            c = renderer.color;
+            if (Time.time < 7) {
+                c.a = 0;
+            } else {
+                c.a = Mathf.InverseLerp(7, 10, Time.time) * .1f;
             }
             renderer.color = c;
         }
